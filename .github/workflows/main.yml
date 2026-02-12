@@ -22,26 +22,34 @@ jobs:
         with:
           gradle-version: '8.2'
 
-      # 🔥 STEP 1: BLACKBOX ENGINE MANUFACTURING
+      # 🔥 STEP 1: BLACKBOX ENGINE MANUFACTURING (URL Fixed)
       # हम 'JavaNoober' का असली कोड लाकर खुद अपना इंजन बनाएंगे
       - name: Build BlackBox Engine from Source
         run: |
           echo "1. Creating Isolated Factory Directory..."
+          # Clean any previous attempts
+          rm -rf $RUNNER_TEMP/blackbox_src
           cd $RUNNER_TEMP
           
-          echo "2. Cloning JavaNoober BlackBox Repo..."
-          # रिपोर्ट के अनुसार JavaNoober ही असली सोर्स है
-          git clone https://github.com/JavaNoober/BlackBox.git blackbox_src
-          cd blackbox_src
+          echo "2. Cloning JavaNoober BBox Repo (Corrected URL)..."
+          # ✅ FIX: 'BlackBox' -> 'BBox' (This fixes the Exit Code 128 error)
+          # We use 'depth 1' to download faster (only latest code)
+          git clone --depth 1 https://github.com/JavaNoober/BBox.git blackbox_src
           
           echo "3. Building the Core Engine (Bcore)..."
+          cd blackbox_src
+          
+          # Permission fix ensures gradlew runs
           chmod +x gradlew
+          
           # यह कमांड असली .aar फाइल जनरेट करेगा
           ./gradlew :Bcore:assembleRelease
           
           echo "4. Installing Engine into LogScope..."
           # हम बनी हुई फाइल को अपने प्रोजेक्ट में कॉपी कर रहे हैं
           mkdir -p $GITHUB_WORKSPACE/app/libs
+          
+          # Copy generated AAR
           cp Bcore/build/outputs/aar/*.aar $GITHUB_WORKSPACE/app/libs/blackbox-core.aar
           
           echo "✅ Engine Successfully Manufactured & Installed!"
