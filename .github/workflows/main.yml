@@ -1,4 +1,4 @@
-name: Build LogScope (Auto-Engine)
+name: Build LogScope (Auto-Engine Fixed)
 
 on:
   workflow_dispatch:
@@ -11,46 +11,46 @@ jobs:
       - name: Checkout LogScope Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      # 🔥 STEP 1: SET UP JAVA 11 (Required for BBox AGP 4.0.1)
+      - name: Set up JDK 11 for BBox
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      # 🔥 STEP 2: BUILD BLACKBOX ENGINE (Bcore)
+      - name: Build BlackBox Engine from Source
+        run: |
+          echo "1. Cloning JavaNoober BBox Repo..."
+          rm -rf $RUNNER_TEMP/blackbox_src
+          git clone --depth 1 https://github.com/JavaNoober/BBox.git $RUNNER_TEMP/blackbox_src
+          
+          cd $RUNNER_TEMP/blackbox_src
+          
+          echo "2. Building with Wrapper & JDK 11..."
+          # Fix: Wrapper use karna zaroori hai kyunki woh sahi Gradle version download karega
+          chmod +x gradlew
+          ./gradlew :Bcore:assembleRelease
+          
+          echo "3. Copying Engine to LogScope..."
+          mkdir -p $GITHUB_WORKSPACE/app/libs
+          cp Bcore/build/outputs/aar/*.aar $GITHUB_WORKSPACE/app/libs/blackbox-core.aar
+          
+          echo "✅ Engine Manufactured Successfully!"
+
+      # 🔥 STEP 3: SWITCH TO JDK 17 (Required for LogScope CompileSdk 34)
+      - name: Set up JDK 17 for LogScope
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
+      - name: Setup Gradle 8.2
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
 
-      # 🔥 STEP 1: BLACKBOX ENGINE MANUFACTURING (Smart Build)
-      - name: Build BlackBox Engine from Source
-        run: |
-          echo "1. Creating Isolated Factory Directory..."
-          # Clean any previous attempts
-          rm -rf $RUNNER_TEMP/blackbox_src
-          cd $RUNNER_TEMP
-          
-          echo "2. Cloning JavaNoober BBox Repo..."
-          # Repo confirm hai, clone successful tha pichli baar
-          git clone --depth 1 https://github.com/JavaNoober/BBox.git blackbox_src
-          
-          echo "3. Building the Core Engine (Bcore)..."
-          cd blackbox_src
-          
-          # 🛑 FIX: Yahan hum './gradlew' use NAHI karenge kyunki wrapper.jar missing hai via developer.
-          # ✅ SOLUTION: Hum global 'gradle' command use karenge jo Step 3 mein install kiya tha.
-          gradle :Bcore:assembleRelease
-          
-          echo "4. Installing Engine into LogScope..."
-          # Destination folder ensure karo
-          mkdir -p $GITHUB_WORKSPACE/app/libs
-          
-          # Copy generated AAR
-          cp Bcore/build/outputs/aar/*.aar $GITHUB_WORKSPACE/app/libs/blackbox-core.aar
-          
-          echo "✅ Engine Successfully Manufactured & Installed!"
-
-      # 🔥 STEP 2: BUILD LOGSCOPE APP
+      # 🔥 STEP 4: BUILD FINAL LOGSCOPE APP
       - name: Grant execute permission for LogScope gradlew
         run: chmod +x gradlew
 
