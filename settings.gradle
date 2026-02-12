@@ -1,0 +1,22 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    // यह सुनिश्चित करता है कि रिपॉजिटरीज़ यहीं से मैनेज हों
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        
+        // JitPack को हटा दिया गया है क्योंकि हम Local AAR यूज़ कर रहे हैं।
+        // (BlackBox Engine GitHub Actions द्वारा बनाया जाएगा)
+    }
+}
+
+rootProject.name = "LogScope"
+include ':app'

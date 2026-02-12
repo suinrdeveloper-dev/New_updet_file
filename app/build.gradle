@@ -1,0 +1,61 @@
+// 1. Plugins Block
+plugins {
+    id 'com.android.application'
+}
+
+// 2. Android Configuration Block
+android {
+    namespace 'com.adobs.logscope'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.adobs.logscope"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Native Libraries Architecture Support
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // ✅ IMPORTANT: Conflict Resolution for Native Libraries
+    // Since we are compiling the engine manually, this prevents duplicate file errors.
+    packagingOptions {
+        pickFirst '**/libc++_shared.so'
+        pickFirst '**/libjsc.so'
+        pickFirst '**/libfbjni.so'
+    }
+}
+
+// 3. Dependencies Block
+dependencies {
+    // Android UI & Core Libraries
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.3.0'
+
+    // ✅ THE FINAL FIX: Local Manufactured Engine
+    // GitHub Actions "JavaNoober" का कोड कंपाइल करके 'libs' फोल्डर में रखेगा।
+    // 'files()' सिंटैक्स सबसे सुरक्षित है क्योंकि इसे 'flatDir' कॉन्फ़िगरेशन की ज़रूरत नहीं होती।
+    implementation files('libs/blackbox-core.aar')
+
+    // Gson (Correct Package Name)
+    implementation 'com.google.code.gson:gson:2.10.1'
+}
