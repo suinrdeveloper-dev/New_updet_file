@@ -1,18 +1,23 @@
+// 1. Build Script Configuration
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // AGP Version for compilation
+        // Android Gradle Plugin 8.1.0 (Compatible with Gradle 8.2)
         classpath 'com.android.tools.build:gradle:8.1.0'
     }
 }
 
+// 2. Plugins Configuration
 plugins {
+    // यह सिर्फ प्लगइन का वर्ज़न बताता है, उसे अप्लाई नहीं करता (apply false)
+    // अप्लाई करने का काम 'app/build.gradle' करता है।
     id 'com.android.application' version '8.1.0' apply false
 }
 
+// 3. Clean Task
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
