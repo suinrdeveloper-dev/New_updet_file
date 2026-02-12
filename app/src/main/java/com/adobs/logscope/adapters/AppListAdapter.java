@@ -1,96 +1,71 @@
-package com.adobs.logscope.viewmodels;
+package com.adobs.logscope.adapters;
 
-import android.app.Application;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
-import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.lifecycle.AndroidViewModel;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.adobs.logscope.R;
 import com.adobs.logscope.models.AppInfo;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-public class AppListViewModel extends AndroidViewModel {
+public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.ViewHolder> {
 
-    private static final String TAG = "AppListViewModel";
-    
-    // LiveData UI को अपने आप अपडेट कर देता है जब डेटा तैयार हो जाता है
-    private final MutableLiveData<List<AppInfo>> appListLiveData = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> isLoadingLiveData = new MutableLiveData<>();
-    
-    private final ExecutorService executorService;
+    private final List<AppInfo> appList;
+    private final OnAppClickListener listener;
 
-    public AppListViewModel(@NonNull Application application) {
-        super(application);
-        executorService = Executors.newSingleThreadExecutor();
-        loadInstalledApps(); // ViewModel बनते ही ऐप्स लोड करना शुरू कर देगा
+    // Interface for Click Event
+    public interface OnAppClickListener {
+        void onAppClick(AppInfo app);
     }
 
-    public LiveData<List<AppInfo>> getAppList() {
-        return appListLiveData;
+    public AppListAdapter(List<AppInfo> appList, OnAppClickListener listener) {
+        this.appList = appList;
+        this.listener = listener;
     }
 
-    public LiveData<Boolean> getIsLoading() {
-        return isLoadingLiveData;
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_app, parent, false);
+        return new ViewHolder(view);
     }
 
-    private void loadInstalledApps() {
-        isLoadingLiveData.setValue(true);
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        AppInfo app = appList.get(position);
         
-        executorService.execute(() -> {
-            List<AppInfo> tempApps = new ArrayList<>();
-            PackageManager pm = getApplication().getPackageManager();
-            
-            try {
-                List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+        holder.tvAppName.setText(app.getAppName());
+        holder.tvPackageName.setText(app.getPackageName());
+        holder.imgIcon.setImageDrawable(app.getIcon());
 
-                for (ApplicationInfo app : packages) {
-                    if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
-                        try {
-                            String name = pm.getApplicationLabel(app).toString();
-                            String pkg = app.packageName;
-                            Drawable icon = pm.getApplicationIcon(app);
-                            
-                            tempApps.add(new AppInfo(name, pkg, icon));
-                        } catch (Exception e) {
-                            Log.w(TAG, "Failed to load icon/label for package: " + app.packageName);
-                        }
-                    }
-                }
-                // FIX: getAppName() का इस्तेमाल क्योंकि fields अब सुरक्षित (private) हैं
-                Collections.sort(tempApps, (o1, o2) -> o1.getAppName().compareToIgnoreCase(o2.getAppName()));
-            } catch (Exception e) {
-                Log.e(TAG, "Error fetching installed applications", e);
+        // Click Listener Setup
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onAppClick(app);
             }
-
-            // postValue अपने आप Main Thread पर जाकर डेटा भेज देता है
-            appListLiveData.postValue(tempApps);
-            isLoadingLiveData.postValue(false);
         });
     }
 
-    public void executeBackgroundLaunch(Runnable task) {
-        executorService.execute(task);
+    @Override
+    public int getItemCount() {
+        return appList.size();
     }
 
-    /**
-     * जब ऐप पूरी तरह से बंद हो जाएगा, तभी यह Executor को शटडाउन करेगा।
-     * स्क्रीन रोटेट होने पर यह शटडाउन नहीं होगा (No data loss).
-     */
-    @Override
-    protected void onCleared() {
-        super.onCleared();
-        if (executorService != null && !executorService.isShutdown()) {
-            executorService.shutdownNow();
+    public static class ViewHolder extends RecyclerView.ViewHolder {
+        TextView tvAppName, tvPackageName;
+        ImageView imgIcon;
+
+        public ViewHolder(@NonNull View itemView) {
+            super(itemView);
+            tvAppName = itemView.findViewById(R.id.tvAppName);
+            tvPackageName = itemView.findViewById(R.id.tvPackageName);
+            imgIcon = itemView.findViewById(R.id.imgIcon);
         }
     }
 }
