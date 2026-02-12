@@ -1,4 +1,4 @@
-name: Build LogScope (Auto-Engine Fixed)
+name: Build LogScope (Direct System Build)
 
 on:
   workflow_dispatch:
@@ -11,51 +11,60 @@ jobs:
       - name: Checkout LogScope Code
         uses: actions/checkout@v4
 
-      # 🔥 STEP 1: SET UP JAVA 11 (Required for BBox AGP 4.0.1)
-      - name: Set up JDK 11 for BBox
+      # ---------------------------------------------------------
+      # PHASE 1: BUILD THE ENGINE (using Java 11 & System Gradle)
+      # ---------------------------------------------------------
+      - name: Set up JDK 11 (Strictly for BBox)
         uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
 
-      # 🔥 STEP 2: BUILD BLACKBOX ENGINE (Bcore)
-      - name: Build BlackBox Engine from Source
+      # ✅ FIX: हम Wrapper पर भरोसा नहीं करेंगे। हम GitHub से कह रहे हैं कि
+      # हमें Gradle 6.9.4 इंस्टॉल करके दे। (BBox पुराना है, इसलिए पुराना Gradle चाहिए)
+      - name: Setup System Gradle 6.9.4
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '6.9.4'
+
+      - name: Build BlackBox Engine (System Gradle)
         run: |
-          echo "1. Cloning JavaNoober BBox Repo..."
+          echo "1. Cloning Source Code..."
           rm -rf $RUNNER_TEMP/blackbox_src
+          # BBox repo clone kar rahe hain
           git clone --depth 1 https://github.com/JavaNoober/BBox.git $RUNNER_TEMP/blackbox_src
           
           cd $RUNNER_TEMP/blackbox_src
           
-          echo "2. Building with Wrapper & JDK 11..."
-          # Fix: Wrapper use karna zaroori hai kyunki woh sahi Gradle version download karega
-          chmod +x gradlew
-          ./gradlew :Bcore:assembleRelease
+          echo "2. Compiling with System Gradle..."
+          # 🛑 OLD FAIL: ./gradlew (Missing file)
+          # ✅ NEW SUCCESS: gradle (System command installed above)
+          gradle :Bcore:assembleRelease
           
-          echo "3. Copying Engine to LogScope..."
+          echo "3. Copying AAR to LogScope..."
           mkdir -p $GITHUB_WORKSPACE/app/libs
           cp Bcore/build/outputs/aar/*.aar $GITHUB_WORKSPACE/app/libs/blackbox-core.aar
           
-          echo "✅ Engine Manufactured Successfully!"
+          echo "✅ Real Engine Created via System Tools!"
 
-      # 🔥 STEP 3: SWITCH TO JDK 17 (Required for LogScope CompileSdk 34)
-      - name: Set up JDK 17 for LogScope
+      # ---------------------------------------------------------
+      # PHASE 2: BUILD LOGSCOPE APP (using Java 17 & New Gradle)
+      # ---------------------------------------------------------
+      - name: Set up JDK 17 (For LogScope)
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 8.2
+      - name: Setup Gradle 8.2 (For LogScope)
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
 
-      # 🔥 STEP 4: BUILD FINAL LOGSCOPE APP
-      - name: Grant execute permission for LogScope gradlew
-        run: chmod +x gradlew
-
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace --no-daemon
+      - name: Build Final APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace --no-daemon
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
