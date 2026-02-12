@@ -1,4 +1,4 @@
-name: Build LogScope (Direct System Build)
+name: Build LogScope (Aliyun Patched)
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       # ---------------------------------------------------------
-      # PHASE 1: BUILD THE ENGINE (using Java 11 & System Gradle)
+      # PHASE 1: BUILD THE ENGINE (Patched for JCenter Shutdown)
       # ---------------------------------------------------------
       - name: Set up JDK 11 (Strictly for BBox)
         uses: actions/setup-java@v4
@@ -20,35 +20,44 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # ✅ FIX: हम Wrapper पर भरोसा नहीं करेंगे। हम GitHub से कह रहे हैं कि
-      # हमें Gradle 6.9.4 इंस्टॉल करके दे। (BBox पुराना है, इसलिए पुराना Gradle चाहिए)
       - name: Setup System Gradle 6.9.4
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '6.9.4'
 
-      - name: Build BlackBox Engine (System Gradle)
+      - name: Build BlackBox Engine (With Aliyun Mirror)
         run: |
           echo "1. Cloning Source Code..."
           rm -rf $RUNNER_TEMP/blackbox_src
-          # BBox repo clone kar rahe hain
           git clone --depth 1 https://github.com/JavaNoober/BBox.git $RUNNER_TEMP/blackbox_src
           
           cd $RUNNER_TEMP/blackbox_src
           
-          echo "2. Compiling with System Gradle..."
-          # 🛑 OLD FAIL: ./gradlew (Missing file)
-          # ✅ NEW SUCCESS: gradle (System command installed above)
+          echo "2. 🔥 PATCHING REPOSITORIES (The Magic Fix)..."
+          # JCenter बंद है, इसलिए हम 'Aliyun Public' मिरर का उपयोग करेंगे जो JCenter का बैकअप है।
+          # हम 'sed' कमांड से build.gradle में URL बदल रहे हैं।
+          
+          # Replace google() with Aliyun Google Mirror
+          sed -i 's|google()|maven { url "https://maven.aliyun.com/repository/google" }\n        google()|g' build.gradle
+          
+          # Replace jcenter() with Aliyun Public Mirror (Contains missing libs)
+          sed -i 's|jcenter()|maven { url "https://maven.aliyun.com/repository/public" }\n        jcenter()|g' build.gradle
+          
+          echo "Files patched. Verifying repositories..."
+          grep "aliyun" build.gradle || echo "Warning: Patch might have failed, check logs."
+
+          echo "3. Compiling with System Gradle..."
+          # अब Gradle को Aliyun पर फाइलें मिल जाएंगी
           gradle :Bcore:assembleRelease
           
-          echo "3. Copying AAR to LogScope..."
+          echo "4. Copying AAR to LogScope..."
           mkdir -p $GITHUB_WORKSPACE/app/libs
           cp Bcore/build/outputs/aar/*.aar $GITHUB_WORKSPACE/app/libs/blackbox-core.aar
           
-          echo "✅ Real Engine Created via System Tools!"
+          echo "✅ Real Engine Created via Aliyun Mirror!"
 
       # ---------------------------------------------------------
-      # PHASE 2: BUILD LOGSCOPE APP (using Java 17 & New Gradle)
+      # PHASE 2: BUILD LOGSCOPE APP
       # ---------------------------------------------------------
       - name: Set up JDK 17 (For LogScope)
         uses: actions/setup-java@v4
