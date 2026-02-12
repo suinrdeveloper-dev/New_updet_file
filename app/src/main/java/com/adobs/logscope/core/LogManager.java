@@ -17,8 +17,7 @@ public class LogManager {
 
     private static final String TAG = "LogManager";
     
-    // SAFETY 1: Bounded Queue. 
-    // अगर डिस्क बहुत धीमी है, तो यह 50,000 लॉग्स तक मेमोरी में रखेगा। उसके बाद ड्रॉप कर देगा ताकि OOM न हो।
+    // SAFETY 1: Bounded Queue to prevent OOM
     private static final BlockingQueue<String> logQueue = new LinkedBlockingQueue<>(50000);
     
     private static volatile boolean isRunning = false;
@@ -26,12 +25,13 @@ public class LogManager {
     private static BufferedWriter bufferedWriter;
 
     /**
-     * फाइल और बैकग्राउंड थ्रेड तैयार करना
+     * Initialize file and background thread
      */
     public static void init(String packageName) {
-        if (isRunning) return; // Prevent multiple initializations
+        if (isRunning) return;
 
         try {
+            // Saving logs in "Documents/LogScope" (Better for Android 11+)
             File root = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "LogScope");
             File appFolder = new File(root, packageName);
             
@@ -43,13 +43,14 @@ public class LogManager {
             String timeStamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(new Date());
             File currentLogFile = new File(appFolder, "Log_" + timeStamp + ".txt");
             
-            // SAFETY 2: Buffered I/O. यह हार्डवेयर पर सीधा दबाव नहीं डालता।
-            bufferedWriter = new BufferedWriter(new FileWriter(currentLogFile, true), 8192); // 8KB Buffer
+            // SAFETY 2: 8KB Buffer for efficient writing
+            bufferedWriter = new BufferedWriter(new FileWriter(currentLogFile, true), 8192);
             
             isRunning = true;
             startWriterThread();
 
             write("--- Session Started: " + packageName + " ---");
+            Log.d(TAG, "LogManager Initialized at: " + currentLogFile.getAbsolutePath());
 
         } catch (IOException e) {
             Log.e(TAG, "Error creating log file: ", e);
@@ -57,23 +58,22 @@ public class LogManager {
     }
 
     /**
-     * यह बैकग्राउंड थ्रेड चुपचाप Queue से लॉग्स निकालकर फाइल में लिखता है
-     * (Optimized: Removed excessive flush() to prevent I/O blocking)
+     * Background Writer Thread
      */
     private static void startWriterThread() {
         writerThread = new Thread(() -> {
-            int logCount = 0; // बैच (Batch) ट्रैकिंग के लिए
+            int logCount = 0;
             
             while (isRunning || !logQueue.isEmpty()) {
                 try {
-                    // यह तब तक ब्लॉक रहता है जब तक Queue में कोई नया लॉग न आ जाए (Zero CPU Waste)
+                    // Blocking call - CPU sleeps until new log arrives
                     String message = logQueue.take(); 
                     
                     if (bufferedWriter != null) {
                         bufferedWriter.write(message);
                         bufferedWriter.newLine();
                         
-                        // PERFORMANCE FIX: हर लॉग पर flush() करने के बजाय, सिर्फ हर 100 लॉग्स के बाद flush करें।
+                        // PERFORMANCE FIX: Flush only every 100 logs
                         logCount++;
                         if (logCount % 100 == 0) {
                             bufferedWriter.flush();
@@ -83,39 +83,35 @@ public class LogManager {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (IOException e) {
-                    // VISIBILITY FIX: Full Stack Trace Logging
-                    Log.e(TAG, "Disk Write Failed with Exception: ", e);
+                    Log.e(TAG, "Disk Write Failed: ", e);
                 }
             }
             closeSilently();
         }, "LogScope-AsyncWriter");
         
-        // Target App की परफॉरमेंस को प्रभावित न करे इसलिए न्यूनतम प्राथमिकता
         writerThread.setPriority(Thread.MIN_PRIORITY); 
         writerThread.start();
     }
 
     /**
-     * FAST API: यह मेथड LogHook द्वारा कॉल किया जाएगा।
-     * यह सिर्फ माइक्रोसेकंड्स लेता है क्योंकि यह सीधे डिस्क पर नहीं लिखता।
+     * API called by LogHook (Non-blocking)
      */
     public static void write(String message) {
         if (!isRunning) return;
 
-        String time = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(new Date());
-        String formattedLog = time + " : " + message;
-        
-        // Non-blocking Insert. 
-        // अगर Queue भर जाती है, तो .offer() false रिटर्न करेगा और हम ऐप क्रैश होने के बजाय लॉग ड्रॉप कर देंगे।
-        boolean isAdded = logQueue.offer(formattedLog);
-        if (!isAdded) {
-            Log.e(TAG, "Log Queue Full! Dropping logs to prevent Target App OOM (Out of Memory).");
+        try {
+            String time = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(new Date());
+            String formattedLog = time + " : " + message;
+            
+            // If queue is full, drop log instead of crashing app
+            if (!logQueue.offer(formattedLog)) {
+                Log.e(TAG, "Log Queue Full! Dropping log.");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing log message", e);
         }
     }
 
-    /**
-     * ग्रेसफुल शटडाउन (जब ऐप बंद हो)
-     */
     public static void shutdown() {
         isRunning = false;
         if (writerThread != null) {
@@ -126,11 +122,9 @@ public class LogManager {
     private static void closeSilently() {
         if (bufferedWriter != null) {
             try {
-                // शटडाउन होने पर बचा हुआ सारा डेटा डिस्क पर सुरक्षित कर दें
                 bufferedWriter.flush();
                 bufferedWriter.close();
             } catch (IOException ignored) {}
         }
     }
 }
-
