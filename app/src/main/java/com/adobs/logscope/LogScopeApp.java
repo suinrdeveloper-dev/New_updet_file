@@ -17,6 +17,7 @@ public class LogScopeApp extends Application {
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
         try {
+            // इंजन को अटैच करना
             BlackBoxCore.get().doAttachBaseContext(base);
         } catch (Exception e) {
             Log.e(TAG, "Fatal Error: BlackBoxCore failed to attach base context", e);
@@ -28,11 +29,13 @@ public class LogScopeApp extends Application {
         super.onCreate();
 
         try {
-            BlackBoxCore.get().doOnCreate();
+            // ✅ FIX: doOnCreate() को बदलकर doCreate() कर दिया गया है
+            BlackBoxCore.get().doCreate();
 
             if (BlackBoxCore.get().isVirtualProcess()) {
                 String processName = resolveProcessName();
                 
+                // इंजन के अंदर लॉगिंग सिस्टम शुरू करना
                 LogManager.init(processName);
                 LogHook.startHooking();
                 
@@ -44,12 +47,10 @@ public class LogScopeApp extends Application {
     }
 
     /**
-     * Safely resolves the target application's process/package name.
-     * Prevents NullPointerExceptions if the virtualization engine drops the context.
+     * वर्चुअल प्रोसेस का नाम सुरक्षित रूप से निकालता है
      */
     private String resolveProcessName() {
         try {
-            // Attempt standard BlackBox API fetch
             String processName = top.niunaijun.blackbox.app.BActivityThread.currentProcessName();
             if (processName != null && !processName.isEmpty()) {
                 return processName;
@@ -57,8 +58,6 @@ public class LogScopeApp extends Application {
         } catch (Exception | Error e) {
             Log.w(TAG, "BActivityThread.currentProcessName() failed. Falling back.", e);
         }
-
-        // Fallback safety string if reflection or internal API fails
         return "Unknown_Virtual_Process";
     }
 }
