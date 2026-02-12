@@ -1,15 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
         <ImageView
             android:id="@+id/imgIcon"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@android:drawable/sym_def_app_icon" /> 
-            ```
+            android:src="@android:drawable/sym_def_app_icon" />
 
----
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-### **निष्कर्ष**
+            <TextView
+                android:id="@+id/tvAppName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Application Name"
+                android:textColor="@android:color/black"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-1.  यह बदलाव करें और **Commit** करें।
-2.  दोबारा **Build** चलाएं।
+            <TextView
+                android:id="@+id/tvPackageName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="com.example.app"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp" />
+        </LinearLayout>
 
-इस बार **AAPT Error** नहीं आएगा क्योंकि हम सिस्टम का आइकॉन यूज़ कर रहे हैं जो कभी मिसिंग नहीं होता। यह 100% चलेगा! 🚀
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_media_play"
+            app:tint="@color/purple_500" />
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
